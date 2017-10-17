@@ -16,6 +16,7 @@ Dependencies
 ------------
 
 - Python_ 2.7 or 3.4+
+- scandir_
 - SQLAlchemy_
 
 
@@ -23,4 +24,5 @@ Dependencies
 .. _CSV: https://en.wikipedia.org/wiki/Comma-separated_values
 .. _md5sum: https://en.wikipedia.org/wiki/Md5sum
 .. _Python: https://www.python.org
+.. _scandir: https://docs.python.org/3/library/os.html#os.scandir
 .. _SQLAlchemy: https://www.sqlalchemy.org/

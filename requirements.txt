@@ -1,1 +1,2 @@
+scandir; python_version < '3.5'
 sqlalchemy>=1.0

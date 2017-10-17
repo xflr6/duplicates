@@ -10,6 +10,17 @@ import csv
 import sys
 import hashlib
 import datetime
+import functools
+
+try:
+    from itertools import imap as map
+except ImportError:
+    map = map
+
+try:
+    from os import scandir
+except ImportError:
+    from scandir import scandir
 
 import sqlalchemy as sa
 import sqlalchemy.ext.declarative
@@ -19,13 +30,13 @@ __license__ = 'MIT, see LICENSE'
 __copyright__ = 'Copyright (c) 2014,2017 Sebastian Bank'
 
 STARTDIR = os.curdir
-FSENCODING = 'latin-1'
+
 DBFILE = 'duplicates.sqlite3'
 OUTFILE = 'duplicates.csv'
 
 PY2 = sys.version_info < (3,)
 
-engine = sa.create_engine('sqlite:///%s' % DBFILE)
+engine = sa.create_engine('sqlite:///%s' % DBFILE, paramstyle='named')
 
 
 class File(sa.ext.declarative.declarative_base()):
@@ -36,29 +47,42 @@ class File(sa.ext.declarative.declarative_base()):
     md5sum = sa.Column(sa.Text, index=True)
     size = sa.Column(sa.Integer, nullable=False)
     mtime = sa.Column(sa.DateTime, nullable=False)
-    # sqlite3 string funcs cannot right extract, denormalize
+    # sqlite3 string funcs cannot right extract
+    # denormalize so we can query for name/extension
     name = sa.Column(sa.Text, nullable=False)
     ext = sa.Column(sa.Text, nullable=False)
 
     @staticmethod
-    def getinfo(start, path, encoding=FSENCODING):
-        if PY2:
-            path = path.decode(encoding)
-        location = os.path.relpath(path, start).replace('\\', '/')
-        name = os.path.basename(path)
-        ext = os.path.splitext(name)[1].lstrip('.')
-        statinfo = os.stat(path)
-        size = statinfo.st_size
-        mtime = datetime.datetime.fromtimestamp(statinfo.st_mtime)
-        return {'location': location, 'name': name, 'ext': ext, 'size': size, 'mtime': mtime}
-
-    @classmethod
-    def from_path(cls, start, path, encoding=FSENCODING):
-        kwargs = cls.getinfo(start, path, encoding=encoding)
-        return cls(**kwargs)
+    def get_infos(start, dentry):
+        return {
+            'location': os.path.relpath(dentry.path, start).replace('\\', '/'),
+            'name': dentry.name,
+            'ext': os.path.splitext(dentry.name)[1].lstrip('.'),
+            'size': dentry.stat().st_size,
+            'mtime': datetime.datetime.fromtimestamp(dentry.stat().st_mtime),
+        }
 
     def __repr__(self):
         return '<%s %r>' % (self.__class__.__name__, self.location)
+
+
+def iterfiles(top, verbose=False):
+    stack = [top]
+    while stack:
+        root = stack.pop()
+        if verbose:
+            print(root)
+        try:
+            dentries = scandir(root)
+        except OSError:
+            continue
+        dirs = []
+        for d in dentries:
+            if d.is_dir():
+                dirs.append(d.path)
+            else:
+                yield d
+        stack.extend(dirs[::-1])
 
 
 def md5sum(filename, bufsize=32768):
@@ -89,14 +113,17 @@ def build_db(engine=engine, start=STARTDIR, recreate=False, verbose=False):
 
 
 def insert_fileinfos(conn, start, verbose):
+    conn.execute('PRAGMA synchronous = OFF')
+    conn.execute('PRAGMA journal_mode = MEMORY')
     conn = conn.execution_options(compiled_cache={})
-    insert_file = sa.insert(File, bind=conn).execute
-    for root, dirs, files in os.walk(start):
-        if verbose:
-            print(root)
-        params = [File.getinfo(start, os.path.join(root, f)) for f in files]
-        if params:
-            insert_file(params)
+
+    assert conn.engine.dialect.paramstyle == 'named'
+    cols = [f.name for f in File.__table__.columns if f.name != 'md5sum']
+    insert_file = sa.insert(File, bind=conn).compile(column_keys=cols).string
+    get_params = functools.partial(File.get_infos, start)
+    iterparams = map(get_params, iterfiles(start))
+
+    conn.connection.executemany(insert_file, iterparams)
 
 
 def add_md5sums(conn, start, verbose):
@@ -148,6 +175,6 @@ def to_csv(results, filename=OUTFILE, encoding='utf-8', dialect='excel'):
 
 
 if __name__ == '__main__':
-    build_db()
+    build_db(recreate=False)
     query = duplicates_query()
     to_csv(engine.execute(query))
