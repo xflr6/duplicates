@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # duplicates.py - duplicate file report as csv
 
 """Duplicate file CSV report via SQLite database with file infos."""
