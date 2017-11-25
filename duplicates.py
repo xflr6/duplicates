@@ -117,13 +117,13 @@ def insert_fileinfos(conn, start, verbose):
     conn.execute('PRAGMA synchronous = OFF')
     conn.execute('PRAGMA journal_mode = MEMORY')
 
-    assert conn.engine.dialect.paramstyle == 'named'
     cols = [f.name for f in File.__table__.columns if f.name != 'md5sum']
-    insert_file = sa.insert(File, bind=conn).compile(column_keys=cols).string
+    insert_file = sa.insert(File, bind=conn).compile(column_keys=cols)
+    assert not insert_file.positional
     get_params = functools.partial(File.get_infos, start)
     iterparams = map(get_params, iterfiles(start, verbose=verbose))
 
-    conn.connection.executemany(insert_file, iterparams)
+    conn.connection.executemany(insert_file.string, iterparams)
 
 
 def add_md5sums(conn, start, verbose):
