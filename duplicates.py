@@ -89,10 +89,7 @@ def iterfiles(top, verbose=False):
 def md5sum(filename, bufsize=32768):
     m = hashlib.md5()
     with io.open(filename, 'rb') as fd:
-        while True:
-            data = fd.read(bufsize)
-            if not data:
-                break
+        for data in iter(functools.partial(fd.read, bufsize), b''):
             m.update(data)
     return m.hexdigest()
 
