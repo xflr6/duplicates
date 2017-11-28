@@ -104,16 +104,16 @@ def build_db(engine=engine, start=STARTDIR, recreate=False, verbose=False):
     File.metadata.create_all(engine)
 
     with engine.begin() as conn:
+        conn.execute('PRAGMA synchronous = OFF')
+        conn.execute('PRAGMA journal_mode = MEMORY')
         insert_fileinfos(conn, start, verbose=verbose)
 
     with engine.begin() as conn:
+        conn = conn.execution_options(compiled_cache={})
         add_md5sums(conn, start, verbose=verbose)
 
 
 def insert_fileinfos(conn, start, verbose):
-    conn.execute('PRAGMA synchronous = OFF')
-    conn.execute('PRAGMA journal_mode = MEMORY')
-
     cols = [f.name for f in File.__table__.columns if f.name != 'md5sum']
     insert_file = sa.insert(File, bind=conn).compile(column_keys=cols)
     assert not insert_file.positional
@@ -124,7 +124,6 @@ def insert_fileinfos(conn, start, verbose):
 
 
 def add_md5sums(conn, start, verbose):
-    conn = conn.execution_options(compiled_cache={})
     query = sa.select([File.location])\
         .where(File.size.in_(sa.select([File.size])
             .group_by(File.size).having(sa.func.count() > 1)))\
