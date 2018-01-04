@@ -44,13 +44,13 @@ class File(sa.ext.declarative.declarative_base()):
 
     __tablename__ = 'file'
 
-    location = sa.Column(sa.Text, primary_key=True)
-    md5sum = sa.Column(sa.Text, index=True)
-    size = sa.Column(sa.Integer, nullable=False)
+    location = sa.Column(sa.Text, sa.CheckConstraint("location != ''"), primary_key=True)
+    md5sum = sa.Column(sa.Text, sa.CheckConstraint('length(md5sum) = 32'), index=True)
+    size = sa.Column(sa.Integer, sa.CheckConstraint('size >= 0'), nullable=False)
     mtime = sa.Column(sa.DateTime, nullable=False)
     # sqlite3 string funcs cannot right extract
     # denormalize so we can query for name/extension
-    name = sa.Column(sa.Text, nullable=False)
+    name = sa.Column(sa.Text, sa.CheckConstraint("name != ''"), nullable=False)
     ext = sa.Column(sa.Text, nullable=False)
 
     @staticmethod
