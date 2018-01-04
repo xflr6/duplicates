@@ -30,7 +30,7 @@ __author__ = 'Sebastian Bank <sebastian.bank@uni-leipzig.de>'
 __license__ = 'MIT, see LICENSE'
 __copyright__ = 'Copyright (c) 2014,2017 Sebastian Bank'
 
-STARTDIR = os.curdir
+STARTDIR = '.'
 
 DBFILE = 'duplicates.sqlite3'
 OUTFILE = 'duplicates.csv'
