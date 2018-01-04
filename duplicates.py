@@ -151,23 +151,19 @@ def duplicates_query(by_location=False):
     return query
 
 
-def to_csv(results, filename=OUTFILE, encoding='utf-8', dialect='excel'):
-    if PY2:
-        open_kwargs = {'mode': 'wb'}
-
-        def writerow(writer, row, encoding):
-            writer.writerow([('%s' % r).encode(encoding) for r in row])
-    else:
-        open_kwargs = {'mode': 'w', 'encoding': encoding, 'newline': ''}
-
-        def writerow(writer, row, encoding):
-            writer.writerow(row)
-
-    with io.open(filename, **open_kwargs) as fd:
-        csvwriter = csv.writer(fd, dialect=dialect)
-        writerow(csvwriter, results.keys(), encoding)
-        for row in results:
-            writerow(csvwriter, row, encoding)
+def to_csv(result, filename=OUTFILE, encoding='utf-8', dialect=csv.excel):
+    open_kwargs = {'mode': 'wb'} if PY2 else \
+                  {'mode': 'w', 'encoding': encoding, 'newline': ''}
+    with io.open(filename, **open_kwargs) as f:
+        writer = csv.writer(f, dialect=dialect)
+        if PY2:
+            writer.writerow([k.encode(encoding) for k in result.keys()])
+            for row in result:
+                srow = [v.encode(encoding) if isinstance(v, unicode) else v for v in row]
+                writer.writerow(srow)
+        else:
+            writer.writerow(result.keys())
+            writer.writerows(result)
 
 
 if __name__ == '__main__':
