@@ -27,7 +27,7 @@ import sqlalchemy as sa
 import sqlalchemy.ext.declarative
 
 __author__ = 'Sebastian Bank <sebastian.bank@uni-leipzig.de>'
-__license__ = 'MIT, see LICENSE'
+__license__ = 'MIT, see LICENSE.txt'
 __copyright__ = 'Copyright (c) 2014,2017 Sebastian Bank'
 
 STARTDIR = '.'
@@ -35,7 +35,7 @@ STARTDIR = '.'
 DBFILE = 'duplicates.sqlite3'
 OUTFILE = 'duplicates.csv'
 
-PY2 = sys.version_info < (3,)
+PY2 = sys.version_info.major == 2
 
 engine = sa.create_engine('sqlite:///%s' % DBFILE, paramstyle='named')
 
