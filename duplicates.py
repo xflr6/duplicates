@@ -53,6 +53,11 @@ class File(sa.ext.declarative.declarative_base()):
     name = sa.Column(sa.Text, sa.CheckConstraint("name != ''"), nullable=False)
     ext = sa.Column(sa.Text, nullable=False)
 
+    __table_args__ = (
+        sa.CheckConstraint('substr(location, -length(name)) = name'),
+        sa.CheckConstraint("ext = '' OR substr(location, -length(ext)) = ext"),
+    )
+
     @staticmethod
     def get_infos(start, dentry):
         return {
