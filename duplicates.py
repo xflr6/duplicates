@@ -35,7 +35,7 @@ STARTDIR = '.'
 DBFILE = 'duplicates.sqlite3'
 OUTFILE = 'duplicates.csv'
 
-PY2 = sys.version_info.major == 2
+PY2 = (sys.version_info.major == 2)
 
 engine = sa.create_engine('sqlite:///%s' % DBFILE, paramstyle='named')
 
