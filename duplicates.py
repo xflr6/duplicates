@@ -130,8 +130,8 @@ def insert_fileinfos(conn, start, verbose):
 
 def add_md5sums(conn, start, verbose):
     query = sa.select([File.location])\
-        .where(File.size.in_(sa.select([File.size])
-            .group_by(File.size).having(sa.func.count() > 1)))\
+        .where(File.size.in_(sa.select([File.size]).group_by(File.size)
+                             .having(sa.func.count() > 1)))\
         .order_by(File.location)
 
     update_file = sa.update(File, bind=conn)\
@@ -147,8 +147,8 @@ def add_md5sums(conn, start, verbose):
 
 def duplicates_query(by_location=False):
     query = sa.select([File])\
-        .where(File.md5sum.in_(sa.select([File.md5sum])
-            .group_by(File.md5sum).having(sa.func.count() > 1)))
+        .where(File.md5sum.in_(sa.select([File.md5sum]).group_by(File.md5sum)
+                               .having(sa.func.count() > 1)))
     if by_location:
         query = query.order_by(File.location)
     else:
