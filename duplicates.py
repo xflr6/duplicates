@@ -33,11 +33,10 @@ __copyright__ = 'Copyright (c) 2014,2017 Sebastian Bank'
 STARTDIR = '.'
 
 DBFILE = 'duplicates.sqlite3'
+
 OUTFILE = 'duplicates.csv'
 
-PY2 = (sys.version_info.major == 2)
-
-engine = sa.create_engine('sqlite:///%s' % DBFILE, paramstyle='named')
+ENGINE = sa.create_engine('sqlite:///%s' % DBFILE, paramstyle='named')
 
 
 class File(sa.ext.declarative.declarative_base()):
@@ -99,7 +98,7 @@ def md5sum(filename, bufsize=32768):
     return m.hexdigest()
 
 
-def build_db(engine=engine, start=STARTDIR, recreate=False, verbose=False):
+def build_db(engine=ENGINE, start=STARTDIR, recreate=False, verbose=False):
     dbfile = engine.url.database
     if os.path.exists(dbfile):
         if not recreate:
@@ -174,4 +173,4 @@ def to_csv(result, filename=OUTFILE, encoding='utf-8', dialect=csv.excel):
 if __name__ == '__main__':
     build_db(recreate=False)
     query = duplicates_query()
-    to_csv(engine.execute(query))
+    to_csv(ENGINE.execute(query))
