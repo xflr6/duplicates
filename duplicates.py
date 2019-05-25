@@ -13,10 +13,10 @@ import hashlib
 import datetime
 import functools
 
-try:
+PY2 = (sys.version_info.major == 2)
+
+if PY2:
     from itertools import imap as map
-except ImportError:
-    map = map
 
 try:
     from os import scandir
@@ -163,7 +163,8 @@ def to_csv(result, filename=OUTFILE, encoding='utf-8', dialect=csv.excel):
         if PY2:
             writer.writerow([k.encode(encoding) for k in result.keys()])
             for row in result:
-                srow = [v.encode(encoding) if isinstance(v, unicode) else v for v in row]
+                srow = [v.encode(encoding) if isinstance(v, unicode) else v
+                        for v in row]
                 writer.writerow(srow)
         else:
             writer.writerow(result.keys())
