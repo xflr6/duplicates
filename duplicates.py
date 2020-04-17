@@ -5,13 +5,13 @@
 
 from __future__ import unicode_literals, print_function
 
-import io
-import os
 import csv
-import sys
-import hashlib
 import datetime
 import functools
+import hashlib
+import io
+import os
+import sys
 
 PY2 = (sys.version_info.major == 2)
 
@@ -26,6 +26,7 @@ except ImportError:
 import sqlalchemy as sa
 import sqlalchemy.ext.declarative
 
+__title__ = 'duplicates.py'
 __author__ = 'Sebastian Bank <sebastian.bank@uni-leipzig.de>'
 __license__ = 'MIT, see LICENSE.txt'
 __copyright__ = 'Copyright (c) 2014,2017 Sebastian Bank'
@@ -36,7 +37,8 @@ DBFILE = 'duplicates.sqlite3'
 
 OUTFILE = 'duplicates.csv'
 
-ENGINE = sa.create_engine('sqlite:///%s' % DBFILE, paramstyle='named')
+ENGINE = sa.create_engine('sqlite:///%s' % DBFILE,
+                          paramstyle='named', echo=False)
 
 
 class File(sa.ext.declarative.declarative_base()):
@@ -44,6 +46,7 @@ class File(sa.ext.declarative.declarative_base()):
     __tablename__ = 'file'
 
     location = sa.Column(sa.Text, sa.CheckConstraint("location != ''"), primary_key=True)
+
     md5sum = sa.Column(sa.Text, sa.CheckConstraint('length(md5sum) = 32'), index=True)
     size = sa.Column(sa.Integer, sa.CheckConstraint('size >= 0'), nullable=False)
     mtime = sa.Column(sa.DateTime, nullable=False)
@@ -128,14 +131,17 @@ def insert_fileinfos(conn, start, verbose):
 
 
 def add_md5sums(conn, start, verbose):
+    select_duped_sizes = sa.select([File.size])\
+                         .group_by(File.size)\
+                         .having(sa.func.count() > 1)
+
     query = sa.select([File.location])\
-        .where(File.size.in_(sa.select([File.size]).group_by(File.size)
-                             .having(sa.func.count() > 1)))\
-        .order_by(File.location)
+            .where(File.size.in_(select_duped_sizes))\
+            .order_by(File.location)
 
     update_file = sa.update(File, bind=conn)\
-        .where(File.location == sa.bindparam('loc'))\
-        .values(md5sum=sa.bindparam('md5sum')).execute
+                  .where(File.location == sa.bindparam('loc'))\
+                  .values(md5sum=sa.bindparam('md5sum')).execute
 
     for location, in conn.execute(query):
         if verbose:
@@ -145,13 +151,15 @@ def add_md5sums(conn, start, verbose):
 
 
 def duplicates_query(by_location=False):
-    query = sa.select([File])\
-        .where(File.md5sum.in_(sa.select([File.md5sum]).group_by(File.md5sum)
-                               .having(sa.func.count() > 1)))
+    select_duped_md5sums = sa.select([File.md5sum])\
+                           .group_by(File.md5sum)\
+                           .having(sa.func.count() > 1)
+
+    query = sa.select([File]).where(File.md5sum.in_(select_duped_md5sums))
     if by_location:
-        query = query.order_by(File.location)
+        query.append_order_by(File.location)
     else:
-        query = query.order_by(File.md5sum, File.location)
+        query.append_order_by(File.md5sum, File.location)
     return query
 
 
