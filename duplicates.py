@@ -3,25 +3,11 @@
 
 """Duplicate file CSV report via SQLite database with file infos."""
 
-from __future__ import unicode_literals, print_function
-
 import csv
 import datetime
 import functools
 import hashlib
-import io
 import os
-import sys
-
-PY2 = (sys.version_info.major == 2)
-
-if PY2:
-    from itertools import imap as map
-
-try:
-    from os import scandir
-except ImportError:
-    from scandir import scandir
 
 import sqlalchemy as sa
 import sqlalchemy.ext.declarative
@@ -81,7 +67,7 @@ def iterfiles(top, verbose=False):
         if verbose:
             print(root)
         try:
-            dentries = scandir(root)
+            dentries = os.scandir(root)
         except OSError:
             continue
         dirs = []
@@ -95,8 +81,8 @@ def iterfiles(top, verbose=False):
 
 def md5sum(filename, bufsize=32768):
     m = hashlib.md5()
-    with io.open(filename, 'rb') as fd:
-        for data in iter(functools.partial(fd.read, bufsize), b''):
+    with open(filename, 'rb') as f:
+        for data in iter(functools.partial(f.read, bufsize), b''):
             m.update(data)
     return m.hexdigest()
 
@@ -164,19 +150,10 @@ def duplicates_query(by_location=False):
 
 
 def to_csv(result, filename=OUTFILE, encoding='utf-8', dialect=csv.excel):
-    open_kwargs = {'mode': 'wb'} if PY2 else \
-                  {'mode': 'w', 'encoding': encoding, 'newline': ''}
-    with io.open(filename, **open_kwargs) as f:
+    with open(filename, 'w', encoding=encoding, newline='') as f:
         writer = csv.writer(f, dialect=dialect)
-        if PY2:
-            writer.writerow([k.encode(encoding) for k in result.keys()])
-            for row in result:
-                srow = [v.encode(encoding) if isinstance(v, unicode) else v
-                        for v in row]
-                writer.writerow(srow)
-        else:
-            writer.writerow(result.keys())
-            writer.writerows(result)
+        writer.writerow(result.keys())
+        writer.writerows(result)
 
 
 if __name__ == '__main__':
