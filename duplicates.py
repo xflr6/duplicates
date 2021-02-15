@@ -8,6 +8,7 @@ import datetime
 import functools
 import hashlib
 import os
+import pathlib
 
 import sqlalchemy as sa
 import sqlalchemy.ext.declarative
@@ -17,50 +18,53 @@ __author__ = 'Sebastian Bank <sebastian.bank@uni-leipzig.de>'
 __license__ = 'MIT, see LICENSE.txt'
 __copyright__ = 'Copyright (c) 2014,2017 Sebastian Bank'
 
-STARTDIR = '.'
+START_DIR = pathlib.Path('.')
 
-DBFILE = 'duplicates.sqlite3'
+DB_PATH = pathlib.Path('duplicates.sqlite3')
 
-OUTFILE = 'duplicates.csv'
+OUT_PATH = pathlib.Path('duplicates.csv')
 
-ENGINE = sa.create_engine('sqlite:///%s' % DBFILE,
+ENGINE = sa.create_engine(f'sqlite:///{DB_PATH}',
                           paramstyle='named', echo=False)
+
+
+def get_file_params(start, dentry):
+    path = pathlib.Path(dentry)
+    return {'location': path.relative_to(start).as_posix(),
+            'name': path.name,
+            'ext': path.suffix,
+            'size': dentry.stat().st_size,
+            'mtime': datetime.datetime.fromtimestamp(dentry.stat().st_mtime)}
 
 
 class File(sa.ext.declarative.declarative_base()):
 
     __tablename__ = 'file'
 
-    location = sa.Column(sa.Text, sa.CheckConstraint("location != ''"), primary_key=True)
+    location = sa.Column(sa.Text, sa.CheckConstraint("location != ''"),
+                         primary_key=True)
 
-    md5sum = sa.Column(sa.Text, sa.CheckConstraint('length(md5sum) = 32'), index=True)
-    size = sa.Column(sa.Integer, sa.CheckConstraint('size >= 0'), nullable=False)
+    md5sum = sa.Column(sa.Text, sa.CheckConstraint('length(md5sum) = 32'),
+                       index=True)
+    size = sa.Column(sa.Integer, sa.CheckConstraint('size >= 0'),
+                     nullable=False)
     mtime = sa.Column(sa.DateTime, nullable=False)
     # sqlite3 string funcs cannot right extract
     # denormalize so we can query for name/extension
     name = sa.Column(sa.Text, sa.CheckConstraint("name != ''"), nullable=False)
     ext = sa.Column(sa.Text, nullable=False)
 
-    __table_args__ = (
-        sa.CheckConstraint('substr(location, -length(name)) = name'),
-        sa.CheckConstraint("ext = '' OR substr(location, -length(ext)) = ext"),
-    )
-
-    @staticmethod
-    def get_infos(start, dentry):
-        return {
-            'location': os.path.relpath(dentry.path, start).replace('\\', '/'),
-            'name': dentry.name,
-            'ext': os.path.splitext(dentry.name)[1].lstrip('.'),
-            'size': dentry.stat().st_size,
-            'mtime': datetime.datetime.fromtimestamp(dentry.stat().st_mtime),
-        }
+    __table_args__ = (sa.CheckConstraint('substr(location, -length(name))'
+                                         ' = name'),
+                      sa.CheckConstraint("ext = '' OR"
+                                         ' substr(location, -length(ext))'
+                                         ' = ext'),)
 
     def __repr__(self):
-        return '<%s %r>' % (self.__class__.__name__, self.location)
+        return f'<{self.__class__.__name__} {self.location!r}>'
 
 
-def iterfiles(top, verbose=False):
+def iterfilepaths(top, verbose=False):
     stack = [top]
     while stack:
         root = stack.pop()
@@ -75,24 +79,24 @@ def iterfiles(top, verbose=False):
             if d.is_dir():
                 dirs.append(d.path)
             else:
-                yield d
+                yield pathlib.Path(d)
         stack.extend(dirs[::-1])
 
 
-def md5sum(filename, bufsize=32768):
-    m = hashlib.md5()
-    with open(filename, 'rb') as f:
+def make_hash(filepath, *, hash_func=hashlib.md5, bufsize=32_768):
+    result = hash_func()
+    with filepath.open('rb') as f:
         for data in iter(functools.partial(f.read, bufsize), b''):
-            m.update(data)
-    return m.hexdigest()
+            result.update(data)
+    return result
 
 
-def build_db(engine=ENGINE, start=STARTDIR, recreate=False, verbose=False):
-    dbfile = engine.url.database
-    if os.path.exists(dbfile):
+def build_db(engine=ENGINE, start=START_DIR, recreate=False, verbose=False):
+    db_path = pathlib.Path(engine.url.database)
+    if db_path.exists():
         if not recreate:
             return
-        os.remove(dbfile)
+        db_path.unlink()
 
     File.metadata.create_all(engine)
 
@@ -110,8 +114,8 @@ def insert_fileinfos(conn, start, verbose):
     cols = [f.name for f in File.__table__.columns if f.name != 'md5sum']
     insert_file = sa.insert(File, bind=conn).compile(column_keys=cols)
     assert not insert_file.positional
-    get_params = functools.partial(File.get_infos, start)
-    iterparams = map(get_params, iterfiles(start, verbose=verbose))
+    get_params = functools.partial(get_file_params, start)
+    iterparams = map(get_params, iterfilepaths(start, verbose=verbose))
 
     conn.connection.executemany(insert_file.string, iterparams)
 
@@ -132,8 +136,8 @@ def add_md5sums(conn, start, verbose):
     for location, in conn.execute(query):
         if verbose:
             print(location)
-        digest = md5sum(os.path.join(start, location))
-        update_file(loc=location, md5sum=digest)
+        md5 = make_hash(start / location)
+        update_file(loc=location, md5sum=md5.hexdigest())
 
 
 def duplicates_query(by_location=False):
@@ -149,8 +153,8 @@ def duplicates_query(by_location=False):
     return query
 
 
-def to_csv(result, filename=OUTFILE, encoding='utf-8', dialect=csv.excel):
-    with open(filename, 'w', encoding=encoding, newline='') as f:
+def to_csv(result, filepath=OUT_PATH, encoding='utf-8', dialect=csv.excel):
+    with filepath.open('w', encoding=encoding, newline='') as f:
         writer = csv.writer(f, dialect=dialect)
         writer.writerow(result.keys())
         writer.writerows(result)
