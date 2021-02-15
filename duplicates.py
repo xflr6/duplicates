@@ -64,7 +64,7 @@ class File(sa.ext.declarative.declarative_base()):
         return f'<{self.__class__.__name__} {self.location!r}>'
 
 
-def iterfilepaths(top, verbose=False):
+def iterfilepaths(top, *, verbose=False):
     stack = [top]
     while stack:
         root = stack.pop()
@@ -91,7 +91,7 @@ def make_hash(filepath, *, hash_func=hashlib.md5, bufsize=32_768):
     return result
 
 
-def build_db(engine=ENGINE, start=START_DIR, recreate=False, verbose=False):
+def build_db(engine=ENGINE, *, start=START_DIR, recreate=False, verbose=False):
     db_path = pathlib.Path(engine.url.database)
     if db_path.exists():
         if not recreate:
@@ -110,7 +110,7 @@ def build_db(engine=ENGINE, start=START_DIR, recreate=False, verbose=False):
         add_md5sums(conn, start, verbose=verbose)
 
 
-def insert_fileinfos(conn, start, verbose):
+def insert_fileinfos(conn, start, *, verbose):
     cols = [f.name for f in File.__table__.columns if f.name != 'md5sum']
     insert_file = sa.insert(File, bind=conn).compile(column_keys=cols)
     assert not insert_file.positional
@@ -120,7 +120,7 @@ def insert_fileinfos(conn, start, verbose):
     conn.connection.executemany(insert_file.string, iterparams)
 
 
-def add_md5sums(conn, start, verbose):
+def add_md5sums(conn, start, *, verbose):
     select_duped_sizes = sa.select([File.size])\
                          .group_by(File.size)\
                          .having(sa.func.count() > 1)
@@ -153,7 +153,7 @@ def duplicates_query(by_location=False):
     return query
 
 
-def to_csv(result, filepath=OUT_PATH, encoding='utf-8', dialect=csv.excel):
+def to_csv(result, filepath=OUT_PATH, *, encoding='utf-8', dialect=csv.excel):
     with filepath.open('w', encoding=encoding, newline='') as f:
         writer = csv.writer(f, dialect=dialect)
         writer.writerow(result.keys())
