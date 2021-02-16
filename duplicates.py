@@ -131,13 +131,14 @@ def add_md5sums(conn, start, *, verbose):
 
     update_file = sa.update(File, bind=conn)\
                   .where(File.location == sa.bindparam('loc'))\
-                  .values(md5sum=sa.bindparam('md5sum')).execute
+                  .values(md5sum=sa.bindparam('md5sum'))
 
     for location, in conn.execute(query):
         if verbose:
             print(location)
         md5 = make_hash(start / location)
-        update_file(loc=location, md5sum=md5.hexdigest())
+        params = {'loc': location, 'md5sum': md5.hexdigest()}
+        conn.execute(update_file, params)
 
 
 def duplicates_query(by_location=False):
