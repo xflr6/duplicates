@@ -147,11 +147,8 @@ def duplicates_query(by_location=False):
                            .having(sa.func.count() > 1)
 
     query = sa.select([File]).where(File.md5sum.in_(select_duped_md5sums))
-    if by_location:
-        query.append_order_by(File.location)
-    else:
-        query.append_order_by(File.md5sum, File.location)
-    return query
+    order_by = [File.location] if by_location else [File.md5sum, File.location]
+    return query.order_by(*order_by)
 
 
 def to_csv(result, filepath=OUT_PATH, *, encoding='utf-8', dialect=csv.excel):
