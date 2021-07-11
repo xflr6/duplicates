@@ -1,7 +1,7 @@
 Duplicates
 ==========
 
-|Build|
+|Build| |Codecov|
 
 This Python script walks the current directory creating an SQLite_ database
 with the path, size, and mtime for each file. After computing and adding the
@@ -30,3 +30,6 @@ Dependencies
 .. |Build| image:: https://github.com/xflr6/duplicates/actions/workflows/build.yaml/badge.svg
     :target: https://github.com/xflr6/duplicates/actions/workflows/build.yaml?query=branch%3Amaster
     :alt: Build
+.. |Codecov| image:: https://codecov.io/gh/xflr6/duplicates/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/xflr6/duplicates
+    :alt: Codecov
