@@ -5,7 +5,7 @@ Duplicates
 
 This Python script walks the current directory creating an SQLite_ database
 with the path, size, and mtime for each file. After computing and adding the
-md5 checksum for all duplicate candidates (files with the same size), it
+md5 checksum for all duplicate candidates (files with the same byte size), it
 generates a CSV_ giving the following infos for each file that has the same
 content (md5sum_) as another file:
 
