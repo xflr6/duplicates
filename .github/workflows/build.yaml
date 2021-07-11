@@ -36,7 +36,7 @@ jobs:
       - name: Upgrade pip
         run: python -m pip install --upgrade pip setuptools wheel
       - name: Install dependencies
-        run: pip install sqlalchemy
+        run: pip install -r requirements.txt
       - name: Run tests
         run: python duplicates.py
       - name: Upload artifacts ${{ matrix.name }}
