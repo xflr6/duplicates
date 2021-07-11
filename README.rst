@@ -1,6 +1,8 @@
 Duplicates
 ==========
 
+|Build|
+
 This Python script walks the current directory creating an SQLite_ database
 with the path, size, and mtime for each file. After computing and adding the
 md5 checksum for all duplicate candidates (files with the same size), it
@@ -24,3 +26,7 @@ Dependencies
 .. _md5sum: https://en.wikipedia.org/wiki/Md5sum
 .. _Python: https://www.python.org
 .. _SQLAlchemy: https://www.sqlalchemy.org/
+
+.. |Build| image:: https://github.com/xflr6/duplicates/actions/workflows/build.yaml/badge.svg
+    :target: https://github.com/xflr6/duplicates/actions/workflows/build.yaml?query=branch%3Amaster
+    :alt: Build
