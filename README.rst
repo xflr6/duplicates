@@ -27,7 +27,7 @@ Dependencies
 .. _Python: https://www.python.org
 .. _SQLAlchemy: https://www.sqlalchemy.org/
 
-.. |Build| image:: https://github.com/xflr6/duplicates/actions/workflows/build.yaml/badge.svg
+.. |Build| image:: https://github.com/xflr6/duplicates/actions/workflows/build.yaml/badge.svg?branch=master
     :target: https://github.com/xflr6/duplicates/actions/workflows/build.yaml?query=branch%3Amaster
     :alt: Build
 .. |Codecov| image:: https://codecov.io/gh/xflr6/duplicates/branch/master/graph/badge.svg
