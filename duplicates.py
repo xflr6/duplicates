@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-# duplicates.py - duplicate file report as csv
 
-"""Duplicate file CSV report via SQLite database with file infos."""
+"""Create duplicate file CSV report via SQLite database with file infos."""
 
 import csv
 import datetime
