@@ -18,7 +18,7 @@ Dependencies
 ------------
 
 - Python_ 3.6+
-- SQLAlchemy_
+- SQLAlchemy_ 1.4+
 
 
 .. _SQLite: https://www.sqlite.org

@@ -8,26 +8,30 @@ import functools
 import hashlib
 import os
 import pathlib
+import sys
+import typing
 
 import sqlalchemy as sa
-import sqlalchemy.ext.declarative
+import sqlalchemy.orm
 
 __title__ = 'duplicates.py'
 __author__ = 'Sebastian Bank <sebastian.bank@uni-leipzig.de>'
 __license__ = 'MIT, see LICENSE.txt'
 __copyright__ = 'Copyright (c) 2014,2017 Sebastian Bank'
 
-START_DIR = pathlib.Path('.')
+START_DIR = pathlib.Path(os.curdir)
 
 DB_PATH = pathlib.Path('duplicates.sqlite3')
 
 OUT_PATH = pathlib.Path('duplicates.csv')
 
-ENGINE = sa.create_engine(f'sqlite:///{DB_PATH}',
-                          paramstyle='named', echo=False)
+ENGINE = sa.create_engine(f'sqlite:///{DB_PATH}', paramstyle='named', echo=False)
+
+REGISTRY = sa.orm.registry()
 
 
-def get_file_params(start, dentry):
+def get_file_params(start: os.PathLike,
+                    dentry: os.PathLike) -> typing.Dict[str, typing.Any]:
     path = pathlib.Path(dentry)
     return {'location': path.relative_to(start).as_posix(),
             'name': path.name,
@@ -36,7 +40,8 @@ def get_file_params(start, dentry):
             'mtime': datetime.datetime.fromtimestamp(dentry.stat().st_mtime)}
 
 
-class File(sa.ext.declarative.declarative_base()):
+@REGISTRY.mapped
+class File:
 
     __tablename__ = 'file'
 
@@ -63,7 +68,8 @@ class File(sa.ext.declarative.declarative_base()):
         return f'<{self.__class__.__name__} {self.location!r}>'
 
 
-def iterfilepaths(top, *, verbose=False):
+def iterfilepaths(top: typing.Union[os.PathLike, str], *,
+                  verbose: bool = False) -> typing.Iterator[pathlib.Path]:
     stack = [top]
     while stack:
         root = stack.pop()
@@ -82,36 +88,40 @@ def iterfilepaths(top, *, verbose=False):
         stack.extend(dirs[::-1])
 
 
-def make_hash(filepath, *, hash_func=hashlib.md5, bufsize=32_768):
-    result = hash_func()
+def make_hash(filepath: pathlib.Path, *,
+              bufsize: int = 32_768) -> hashlib._hashlib.HASH:
+    result = hashlib.md5()
     with filepath.open('rb') as f:
         for data in iter(functools.partial(f.read, bufsize), b''):
             result.update(data)
     return result
 
 
-def build_db(engine=ENGINE, *, start=START_DIR, recreate=False, verbose=False):
+def build_db(engine: sa.engine.Engine = ENGINE, *,
+             start: pathlib.Path = START_DIR,
+             recreate: bool = False,
+             verbose: bool = False) -> None:
     db_path = pathlib.Path(engine.url.database)
     if db_path.exists():
         if not recreate:
             return
         db_path.unlink()
 
-    File.metadata.create_all(engine)
+    REGISTRY.metadata.create_all(engine)
 
     with engine.begin() as conn:
-        conn.execute('PRAGMA synchronous = OFF')
-        conn.execute('PRAGMA journal_mode = MEMORY')
+        conn.execute(sa.text('PRAGMA synchronous = OFF'))
+        conn.execute(sa.text('PRAGMA journal_mode = MEMORY'))
         insert_fileinfos(conn, start, verbose=verbose)
 
     with engine.begin() as conn:
-        conn = conn.execution_options(compiled_cache={})
         add_md5sums(conn, start, verbose=verbose)
 
 
-def insert_fileinfos(conn, start, *, verbose):
+def insert_fileinfos(conn: sa.engine.Connection, start: pathlib.Path, *,
+                     verbose: bool) -> None:
     cols = [f.name for f in File.__table__.columns if f.name != 'md5sum']
-    insert_file = sa.insert(File, bind=conn).compile(column_keys=cols)
+    insert_file = sa.insert(File).compile(bind=conn, column_keys=cols)
     assert not insert_file.positional
     get_params = functools.partial(get_file_params, start)
     iterparams = map(get_params, iterfilepaths(start, verbose=verbose))
@@ -119,18 +129,19 @@ def insert_fileinfos(conn, start, *, verbose):
     conn.connection.executemany(insert_file.string, iterparams)
 
 
-def add_md5sums(conn, start, *, verbose):
-    select_duped_sizes = sa.select([File.size])\
-                         .group_by(File.size)\
-                         .having(sa.func.count() > 1)
+def add_md5sums(conn: sa.engine.Connection, start: pathlib.Path, *,
+                verbose: bool) -> None:
+    select_duped_sizes = (sa.select(File.size)
+                          .group_by(File.size)
+                          .having(sa.func.count() > 1))
 
-    query = sa.select([File.location])\
-            .where(File.size.in_(select_duped_sizes))\
-            .order_by(File.location)
+    query = (sa.select(File.location)
+             .where(File.size.in_(select_duped_sizes))
+             .order_by(File.location))
 
-    update_file = sa.update(File, bind=conn)\
-                  .where(File.location == sa.bindparam('loc'))\
-                  .values(md5sum=sa.bindparam('md5sum'))
+    update_file = (sa.update(File)
+                   .where(File.location == sa.bindparam('loc'))
+                   .values(md5sum=sa.bindparam('md5sum')))
 
     for location, in conn.execute(query):
         if verbose:
@@ -140,24 +151,33 @@ def add_md5sums(conn, start, *, verbose):
         conn.execute(update_file, params)
 
 
-def duplicates_query(by_location=False):
-    select_duped_md5sums = sa.select([File.md5sum])\
-                           .group_by(File.md5sum)\
-                           .having(sa.func.count() > 1)
+def get_duplicates_query(by_location: bool = False) -> sa.sql.Select:
+    select_duped_md5sums = (sa.select(File.md5sum)
+                            .group_by(File.md5sum)
+                            .having(sa.func.count() > 1))
 
-    query = sa.select([File]).where(File.md5sum.in_(select_duped_md5sums))
+    query = sa.select(File).where(File.md5sum.in_(select_duped_md5sums))
     order_by = [File.location] if by_location else [File.md5sum, File.location]
     return query.order_by(*order_by)
 
 
-def to_csv(result, filepath=OUT_PATH, *, encoding='utf-8', dialect=csv.excel):
+def to_csv(result: sa.engine.Result, filepath: pathlib.Path = OUT_PATH, *,
+           dialect: typing.Union[typing.Type[csv.Dialect], str] = csv.excel,
+           encoding: str = 'utf-8') -> None:
     with filepath.open('w', encoding=encoding, newline='') as f:
         writer = csv.writer(f, dialect=dialect)
         writer.writerow(result.keys())
         writer.writerows(result)
 
 
-if __name__ == '__main__':
+def main() -> None:
     build_db(recreate=False)
-    query = duplicates_query()
-    to_csv(ENGINE.execute(query))
+    query = get_duplicates_query()
+    with ENGINE.connect() as conn:
+        result = conn.execute(query)
+        to_csv(result)
+    return None
+
+
+if __name__ == '__main__':
+    sys.exit(main())
