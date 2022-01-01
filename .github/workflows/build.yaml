@@ -27,9 +27,6 @@ jobs:
           - name: linux-3.7
             python-version: "3.7"
             os: ubuntu-latest
-          - name: linux-3.6
-            python-version: "3.6"
-            os: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
