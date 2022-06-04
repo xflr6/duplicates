@@ -17,7 +17,7 @@ content (md5sum_) as another file:
 Dependencies
 ------------
 
-- Python_ 3.7+
+- Python_ 3.9+
 - SQLAlchemy_ 1.4+
 
 

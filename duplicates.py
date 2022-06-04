@@ -2,6 +2,7 @@
 
 """Create duplicate file CSV report via SQLite database with file infos."""
 
+from collections.abc import Iterator
 import csv
 import datetime
 import functools
@@ -9,7 +10,7 @@ import hashlib
 import os
 import pathlib
 import sys
-import typing
+from typing import Any, Union
 
 import sqlalchemy as sa
 import sqlalchemy.orm
@@ -31,7 +32,7 @@ REGISTRY = sa.orm.registry()
 
 
 def get_file_params(start: os.PathLike,
-                    dentry: os.PathLike) -> typing.Dict[str, typing.Any]:
+                    dentry: os.PathLike) -> dict[str, Any]:
     path = pathlib.Path(dentry)
     return {'location': path.relative_to(start).as_posix(),
             'name': path.name,
@@ -68,8 +69,8 @@ class File:
         return f'<{self.__class__.__name__} {self.location!r}>'
 
 
-def iterfilepaths(top: typing.Union[os.PathLike, str], *,
-                  verbose: bool = False) -> typing.Iterator[pathlib.Path]:
+def iterfilepaths(top: Union[os.PathLike, str], *,
+                  verbose: bool = False) -> Iterator[pathlib.Path]:
     stack = [top]
     while stack:
         root = stack.pop()
@@ -162,7 +163,7 @@ def get_duplicates_query(by_location: bool = False) -> sa.sql.Select:
 
 
 def to_csv(result: sa.engine.Result, filepath: pathlib.Path = OUT_PATH, *,
-           dialect: typing.Union[typing.Type[csv.Dialect], str] = csv.excel,
+           dialect: Union[csv.Dialect, type[csv.Dialect], str] = csv.excel,
            encoding: str = 'utf-8') -> None:
     with filepath.open('w', encoding=encoding, newline='') as f:
         writer = csv.writer(f, dialect=dialect)
