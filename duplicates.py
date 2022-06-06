@@ -38,7 +38,8 @@ def get_file_params(start: os.PathLike,
             'name': path.name,
             'ext': path.suffix,
             'size': dentry.stat().st_size,
-            'mtime': datetime.datetime.fromtimestamp(dentry.stat().st_mtime)}
+            'mtime': datetime.datetime.fromtimestamp(dentry.stat().st_mtime,
+                                                     datetime.timezone.utc)}
 
 
 @REGISTRY.mapped
