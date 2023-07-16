@@ -32,7 +32,7 @@ REGISTRY = sa.orm.registry()
 
 
 def get_file_params(start: os.PathLike,
-                    dentry: os.PathLike) -> dict[str, Any]:
+                    dentry: os.PathLike, /) -> dict[str, Any]:
     path = pathlib.Path(dentry)
     return {'location': path.relative_to(start).as_posix(),
             'name': path.name,
@@ -70,7 +70,7 @@ class File:
         return f'<{self.__class__.__name__} {self.location!r}>'
 
 
-def iterfilepaths(top: Union[os.PathLike, str], *,
+def iterfilepaths(top: Union[os.PathLike, str], /, *,
                   verbose: bool = False) -> Iterator[pathlib.Path]:
     stack = [top]
     while stack:
@@ -90,7 +90,7 @@ def iterfilepaths(top: Union[os.PathLike, str], *,
         stack.extend(dirs[::-1])
 
 
-def make_hash(filepath: pathlib.Path, *,
+def make_hash(filepath: pathlib.Path, /, *,
               bufsize: int = 32_768) -> hashlib._hashlib.HASH:
     result = hashlib.md5()
     with filepath.open('rb') as f:
@@ -99,7 +99,7 @@ def make_hash(filepath: pathlib.Path, *,
     return result
 
 
-def build_db(engine: sa.engine.Engine = ENGINE, *,
+def build_db(engine: sa.engine.Engine = ENGINE, /, *,
              start: pathlib.Path = START_DIR,
              recreate: bool = False,
              verbose: bool = False) -> None:
@@ -120,7 +120,7 @@ def build_db(engine: sa.engine.Engine = ENGINE, *,
         add_md5sums(conn, start, verbose=verbose)
 
 
-def insert_fileinfos(conn: sa.engine.Connection, start: pathlib.Path, *,
+def insert_fileinfos(conn: sa.engine.Connection, /, start: pathlib.Path, *,
                      verbose: bool) -> None:
     cols = [f.name for f in File.__table__.columns if f.name != 'md5sum']
     insert_file = sa.insert(File).compile(bind=conn, column_keys=cols)
@@ -131,7 +131,7 @@ def insert_fileinfos(conn: sa.engine.Connection, start: pathlib.Path, *,
     conn.connection.executemany(insert_file.string, iterparams)
 
 
-def add_md5sums(conn: sa.engine.Connection, start: pathlib.Path, *,
+def add_md5sums(conn: sa.engine.Connection, /, start: pathlib.Path, *,
                 verbose: bool) -> None:
     select_duped_sizes = (sa.select(File.size)
                           .group_by(File.size)
@@ -153,7 +153,7 @@ def add_md5sums(conn: sa.engine.Connection, start: pathlib.Path, *,
         conn.execute(update_file, params)
 
 
-def get_duplicates_query(by_location: bool = False) -> sa.sql.Select:
+def get_duplicates_query(by_location: bool = False, /) -> sa.sql.Select:
     select_duped_md5sums = (sa.select(File.md5sum)
                             .group_by(File.md5sum)
                             .having(sa.func.count() > 1))
@@ -163,7 +163,7 @@ def get_duplicates_query(by_location: bool = False) -> sa.sql.Select:
     return query.order_by(*order_by)
 
 
-def to_csv(result: sa.engine.Result, filepath: pathlib.Path = OUT_PATH, *,
+def to_csv(result: sa.engine.Result, /, filepath: pathlib.Path = OUT_PATH, *,
            dialect: Union[csv.Dialect, type[csv.Dialect], str] = csv.excel,
            encoding: str = 'utf-8') -> None:
     with filepath.open('w', encoding=encoding, newline='') as f:
