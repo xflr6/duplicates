@@ -18,7 +18,7 @@ jobs:
           - name: mac-3.13
             python-version: "3.13"
             os: macos-latest
-          - name: linux-3.11
+          - name: linux-3.12
             python-version: "3.12"
             os: ubuntu-latest
           - name: linux-3.11
