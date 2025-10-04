@@ -10,7 +10,7 @@ import hashlib
 import os
 import pathlib
 import sys
-from typing import Any, Union
+from typing import Any, TypedDict
 
 import sqlalchemy as sa
 import sqlalchemy.orm
@@ -31,15 +31,24 @@ ENGINE = sa.create_engine(f'sqlite:///{DB_PATH}', paramstyle='named', echo=False
 REGISTRY = sa.orm.registry()
 
 
-def get_file_params(start: os.PathLike,
-                    dentry: os.PathLike, /) -> dict[str, Any]:
+class FileInfo(TypedDict):
+
+    location: str
+    name: str
+    ext: str
+    size: int
+    mtime: datetime.datetime
+
+
+def get_file_params(start: os.PathLike[str] | str,
+                    dentry: os.PathLike[str] | str, /) -> FileInfo:
     path = pathlib.Path(dentry)
+    stat = path.stat()
     return {'location': path.relative_to(start).as_posix(),
             'name': path.name,
             'ext': path.suffix,
-            'size': dentry.stat().st_size,
-            'mtime': datetime.datetime.fromtimestamp(dentry.stat().st_mtime,
-                                                     datetime.timezone.utc)}
+            'size': stat.st_size,
+            'mtime': datetime.datetime.fromtimestamp(stat.st_mtime, datetime.UTC)}
 
 
 @REGISTRY.mapped
@@ -70,9 +79,9 @@ class File:
         return f'<{self.__class__.__name__} {self.location!r}>'
 
 
-def iterfilepaths(top: Union[os.PathLike, str], /, *,
+def iterfilepaths(top: os.PathLike[str] | str, /, *,
                   verbose: bool = False) -> Iterator[pathlib.Path]:
-    stack = [top]
+    stack = [pathlib.Path(top)]
     while stack:
         root = stack.pop()
         if verbose:
@@ -87,20 +96,20 @@ def iterfilepaths(top: Union[os.PathLike, str], /, *,
                 dirs.append(d.path)
             else:
                 yield pathlib.Path(d)
-        stack.extend(dirs[::-1])
+        stack.extend(reversed(dirs))
 
 
-def make_hash(filepath: pathlib.Path, /, *,
+def make_hash(filepath: os.PathLike[str] | str, /, *,
               bufsize: int = 32_768) -> hashlib._hashlib.HASH:
     result = hashlib.md5()
-    with filepath.open('rb') as f:
+    with open(filepath, mode='rb') as f:
         for data in iter(functools.partial(f.read, bufsize), b''):
             result.update(data)
     return result
 
 
 def build_db(engine: sa.engine.Engine = ENGINE, /, *,
-             start: pathlib.Path = START_DIR,
+             start: os.PathLike[str] | str = START_DIR,
              recreate: bool = False,
              verbose: bool = False) -> None:
     db_path = pathlib.Path(engine.url.database)
@@ -120,7 +129,7 @@ def build_db(engine: sa.engine.Engine = ENGINE, /, *,
         add_md5sums(conn, start, verbose=verbose)
 
 
-def insert_fileinfos(conn: sa.engine.Connection, /, start: pathlib.Path, *,
+def insert_fileinfos(conn: sa.engine.Connection, /, start: os.PathLike[str] | str, *,
                      verbose: bool) -> None:
     cols = [f.name for f in File.__table__.columns if f.name != 'md5sum']
     insert_file = sa.insert(File).compile(bind=conn, column_keys=cols)
@@ -131,8 +140,10 @@ def insert_fileinfos(conn: sa.engine.Connection, /, start: pathlib.Path, *,
     conn.connection.executemany(insert_file.string, iterparams)
 
 
-def add_md5sums(conn: sa.engine.Connection, /, start: pathlib.Path, *,
+def add_md5sums(conn: sa.engine.Connection, /, start: os.PathLike[str] | str, *,
                 verbose: bool) -> None:
+    start = pathlib.Path(start)
+
     select_duped_sizes = (sa.select(File.size)
                           .group_by(File.size)
                           .having(sa.func.count() > 1))
@@ -163,16 +174,16 @@ def get_duplicates_query(by_location: bool = False, /) -> sa.sql.Select:
     return query.order_by(*order_by)
 
 
-def to_csv(result: sa.engine.Result, /, filepath: pathlib.Path = OUT_PATH, *,
-           dialect: Union[csv.Dialect, type[csv.Dialect], str] = csv.excel,
+def to_csv(result: sa.engine.Result, /, filepath: os.PathLike[str] | str = OUT_PATH, *,
+           dialect: csv.Dialect | type[csv.Dialect] | str = csv.excel,
            encoding: str = 'utf-8') -> None:
-    with filepath.open('w', encoding=encoding, newline='') as f:
+    with open(filepath, mode='w', encoding=encoding, newline='') as f:
         writer = csv.writer(f, dialect=dialect)
         writer.writerow(result.keys())
         writer.writerows(result)
 
 
-def main() -> None:
+def main() -> str | None:
     build_db(recreate=False)
     query = get_duplicates_query()
     with ENGINE.connect() as conn:
