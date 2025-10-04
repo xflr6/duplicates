@@ -9,6 +9,7 @@ import functools
 import hashlib
 import os
 import pathlib
+import sqlite3
 import sys
 from typing import Any, TypedDict
 
@@ -53,6 +54,14 @@ def get_file_params(start: os.PathLike[str] | str,
 
 make_datetime = functools.partial(datetime.datetime.fromtimestamp,
                                   tz=datetime.timezone.utc)
+
+
+def adapt_datetime(value: datetime.datetime, /) -> str:
+    assert value.tzinfo is datetime.timezone.utc
+    return value.isoformat(sep=' ')
+
+
+sqlite3.register_adapter(datetime.datetime, adapt_datetime)
 
 
 @REGISTRY.mapped
@@ -141,6 +150,7 @@ def insert_fileinfos(conn: sa.engine.Connection, /, start: os.PathLike[str] | st
     get_params = functools.partial(get_file_params, start)
     iterparams = map(get_params, iterfilepaths(start, verbose=verbose))
 
+    # https://docs.python.org/3/library/sqlite3.html#sqlite3.Cursor.executemany
     conn.connection.executemany(insert_file.string, iterparams)
 
 
