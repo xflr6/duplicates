@@ -48,7 +48,11 @@ def get_file_params(start: os.PathLike[str] | str,
             'name': path.name,
             'ext': path.suffix,
             'size': stat.st_size,
-            'mtime': datetime.datetime.fromtimestamp(stat.st_mtime, datetime.UTC)}
+            'mtime': make_datetime(stat.st_mtime)}
+
+
+make_datetime = functools.partial(datetime.datetime.fromtimestamp,
+                                  tz=datetime.timezone.utc)
 
 
 @REGISTRY.mapped
