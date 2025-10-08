@@ -9,15 +9,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: linux-3.14
+            python-version: "3.14"
+            os: ubuntu-latest
+          - name: windows-3.14
+            python-version: "3.14"
+            os: windows-latest
+          - name: mac-3.14
+            python-version: "3.14"
+            os: macos-latest
           - name: linux-3.13
             python-version: "3.13"
             os: ubuntu-latest
-          - name: windows-3.13
-            python-version: "3.13"
-            os: windows-latest
-          - name: mac-3.13
-            python-version: "3.13"
-            os: macos-latest
           - name: linux-3.12
             python-version: "3.12"
             os: ubuntu-latest
