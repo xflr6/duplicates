@@ -112,13 +112,9 @@ def iterfilepaths(top: os.PathLike[str] | str, /, *,
         stack.extend(reversed(dirs))
 
 
-def make_hash(filepath: os.PathLike[str] | str, /, *,
-              bufsize: int = 32_768) -> hashlib._hashlib.HASH:
-    result = hashlib.md5()
+def make_hash(filepath: os.PathLike[str] | str, /) -> hashlib._hashlib.HASH:
     with open(filepath, mode='rb') as f:
-        for data in iter(functools.partial(f.read, bufsize), b''):
-            result.update(data)
-    return result
+        return hashlib.file_digest(f, hashlib.md5)
 
 
 def build_db(engine: sa.engine.Engine = ENGINE, /, *,
