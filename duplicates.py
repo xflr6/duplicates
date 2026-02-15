@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["sqlalchemy>=1.4"]
+# ///
 
 """Create duplicate file CSV report via SQLite database with file infos."""
 
